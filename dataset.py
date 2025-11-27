@@ -5,9 +5,7 @@ def clean_data():
 def get_data():
     clean_data()
     df = pd.read_csv('nse_data.csv',index_col=0)
-    # df = df.tail(100)
-    # first_int = df.iloc[0].astype(int)//2
-    # df = df - first_int
+    df = df.round(2)
     print(df.head())
     
     log_returns = np.log(df / df.shift(1)).dropna()

@@ -25,18 +25,18 @@ tickers = [
     "CJET",
     "SAVA"
 ]
-# tickers = [
-#     "AAPL",  # Apple Inc.
-#     "MSFT",  # Microsoft Corp.
-#     "AMZN",  # Amazon.com Inc.
-#     "GOOGL", # Alphabet Inc. (Class A)
-#     "NVDA",  # NVIDIA Corp.
-#     "META",  # Meta Platforms Inc. (formerly Facebook)
-#     "TSLA",  # Tesla Inc.
-#     "ADBE",  # Adobe Inc.
-#     "NFLX",  # Netflix Inc.
-#     "INTU"   # Intuit Inc.
-# ]
+tickers = [
+    "AAPL",  # Apple Inc.
+    "MSFT",  # Microsoft Corp.
+    "AMZN",  # Amazon.com Inc.
+    "GOOGL", # Alphabet Inc. (Class A)
+    "NVDA",  # NVIDIA Corp.
+    "META",  # Meta Platforms Inc. (formerly Facebook)
+    "TSLA",  # Tesla Inc.
+    "ADBE",  # Adobe Inc.
+    "NFLX",  # Netflix Inc.
+    "INTU"   # Intuit Inc.
+]
 # tickers = [  
 #     "SMCI",   # Super Micro Computer — very high beta / volatility 
 # # ::contentReference[oaicite:0]{index=0}
@@ -61,22 +61,17 @@ for ticker in nse_tickers:
     print(f"Downloading data for {ticker}...")
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period='max', interval="1d")
-        # Keep only the 'Close' price and rename column to the stock name
-        data = data[['Close']].rename(columns={'Close': ticker.replace(".NS", "")})
-        all_data[ticker.replace(".NS", "")] = data
-        sleep(0.5)  # avoid rate limiting
+        data = stock.history(start='2015-01-01',end='2025-01-01', interval="3mo")
+        data = data[['Close']].rename(columns={'Close': ticker})
+        print(f"Got {len(data)} rows for {ticker}")
+        all_data[ticker] = data
+        sleep(0.5)
         print("Complete: ", ticker)
     except Exception as e:
         print(f"Error downloading {ticker}: {e}")
-
-# Merge all stocks on the timestamp index
 combined_df = pd.concat(all_data.values(), axis=1)
-
-# Drop rows where any stock is NaN (i.e., keep only rows with all values)
 combined_df.dropna(how='any', inplace=True)
 
-# Reset index to make 'Datetime' a column
 combined_df.reset_index(inplace=True)
 combined_df.rename(columns={'Datetime': 'Timestamp'}, inplace=True)
 

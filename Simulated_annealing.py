@@ -14,11 +14,6 @@ logging.basicConfig(
     filename='data.log',
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
-
-
-# ================================================================
-# 2. PORTFOLIO OBJECTIVE (Sharpe, risk, returns, transaction cost)
-# ================================================================
 class PortfolioObjective:
     def __init__(self, risk_free_rate=0.0, lambda_risk=0.01, lambda_cost=0.1, cost_rate=0.01):
         self.rf = risk_free_rate

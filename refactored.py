@@ -2,7 +2,13 @@ import math
 import random
 import numpy as np
 from heapdict import heapdict
-
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    filemode='w',
+    filename='data.log',
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 class State:
     def __init__(self):
         self.state = []
@@ -54,7 +60,7 @@ class Annealer:
         self.temperature *= (1 - self.scheduling_constant)
 
     def logarithmic_schedule(self):
-        self.temperature = self.scheduling_constant / math.log(self.step + 2)
+        self.temperature = self.initial_temp / math.log(self.step + 2)
 
     def schedule_step(self):
         if self.temperature_schedule == 'linear':
@@ -71,7 +77,7 @@ class Annealer:
     def anneal_step(self):
         move = self.state.get_neighbour()
         dE = self.state.cost_change(move)
-
+        logging.info(f"Step {self.step}: Move={move}, dE={dE}, Temp={self.temperature}")
         if dE <= 0:
             self.state.update(move)
         else:
@@ -127,7 +133,6 @@ class Annealer:
             self.optimal_state = best_state.copy()
             self.state.state = best_state.copy()
             cost = best_cost
-
         best_cost = self.greedy_search()
         self.optimal_state = self.state.state
 
@@ -150,11 +155,8 @@ class Annealer:
 
     def get_solution(self):
         return self.state
-
-
-# ======================================================================
-# PORTFOLIO OPTIMIZATION STATE (refactored to match your base class)
-# ======================================================================
+    def plot_cost_history(self,save=False):
+        self.state.plot_cost_history(save)
 
 class PortfolioState(State):
     """
@@ -162,11 +164,12 @@ class PortfolioState(State):
       - transfer delta weight from asset i to asset j
     """
 
-    def __init__(self, returns, cov, risk_free_rate=0.03, max_w=0.3):
+    def __init__(self, returns, cov, risk_free_rate=0.0074, max_w=0.3):
         super().__init__()
         self.returns = np.array(returns)
         self.cov = np.array(cov)
         self.rf = risk_free_rate
+        self.cost_history=[]
         self.max_w = max_w
         self.n = len(returns)
 
@@ -176,7 +179,7 @@ class PortfolioState(State):
 
         self.initial_state = self.state.copy()
 
-    # ---------------------- Portfolio Metrics ----------------------
+    # Calculating Portfolio Metrics
 
     def portfolio_return(self, w):
         return np.dot(w, self.returns)
@@ -189,10 +192,8 @@ class PortfolioState(State):
         s = self.portfolio_risk(w)
         return 0 if s == 0 else (r - self.rf) / s
 
-    # ---------------------- Cost Function -------------------------
-
     def cost(self, state):
-        # cost = -sharpe
+        # cost = minimize risk
         w = self.state if state is None else state
         return -self.sharpe(w)
 
@@ -204,8 +205,8 @@ class PortfolioState(State):
         w2 = w.copy()
 
         # enforce bounds
-        delta = min(delta, w2[i])            # can't transfer more than w[i]
-        delta = min(delta, self.max_w - w2[j])  # can't exceed max weight
+        delta = min(delta, w2[i])          
+        delta = min(delta, self.max_w - w2[j]) 
 
         if delta < 0:
             return w.copy()  # no-op safeguard
@@ -231,23 +232,15 @@ class PortfolioState(State):
     def update(self, move):
         """Update self.state by applying move."""
         self.state = self.apply_move(self.state, move)
+        self.cost_history.append(self.cost(self.state))
 
     def cost_change(self, move):
         w_new = self.apply_move(self.state, move)
         return self.cost(w_new) - self.cost(self.state)
 
-    # ---------------------- Neighborhood Enumeration ----------------------
-
     def get_all_neighbours(self):
-        """
-        Returns a heapdict: move -> ΔE
-        Move = (i, j, delta discrete)
-        """
-
         queue = heapdict()
         w = self.state
-
-        # For all pairs, try small discrete deltas
         for i in range(self.n):
             for j in range(self.n):
                 if i == j:
@@ -258,13 +251,22 @@ class PortfolioState(State):
                     continue
 
                 # Discretize — 3 test deltas
-                for fraction in (0.1, 0.2, 0.3):
+                for fraction in (0.05, 0.1, 0.15):
                     delta = max_delta * fraction
                     move = (i, j, delta)
                     dE = self.cost_change(move)
                     queue[move] = dE
 
         return queue
+    def plot_cost_history(self,save=False):
+        import matplotlib.pyplot as plt
+        plt.plot(self.cost_history)
+        plt.xlabel('Steps')
+        plt.ylabel('Cost')
+        plt.title('Cost History Over Time')
+        if save:
+            plt.savefig("cost_history.png")
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -274,17 +276,18 @@ if __name__ == "__main__":
     state = PortfolioState(returns, cov)
     annealer = Annealer(
         state=state,
-        initial_temp=10,
+        initial_temp=1,
         temperature_schedule="logarithmic",
-        scheduling_constant=0.01
+        scheduling_constant=0.001
     )
 
     result = annealer.anneal(
         steps=5000,
         stop_temp=1e-6,
-        unchanged_threshold=300,
-        n_runs=3
+        unchanged_threshold=500,
+        n_runs=5
     )
+    result.plot_cost_history(save=True)
 
     print("Optimized weights:", result.state)
     print("Sharpe:", result.sharpe(result.state))
