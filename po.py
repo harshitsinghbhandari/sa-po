@@ -73,7 +73,6 @@ class Annealer:
             self.temperature = self.temperature_schedule(
                 self.temperature, self.step, self.scheduling_constant
             )
-
     def anneal_step(self):
         move = self.state.get_neighbour()
         dE = self.state.cost_change(move)
@@ -120,14 +119,12 @@ class Annealer:
                     unchanged_steps = 0
                 else:
                     unchanged_steps += 1
-
                 if steps is not None and ((self.step - initial_step) >= steps):
                     break
                 if stop_temp is not None and self.temperature <= stop_temp:
                     break
                 if unchanged_steps >= unchanged_threshold:
                     break
-
             print(f"Run {i+1}/{n_runs}  Temp={initial_temp:.4f}  Best cost={best_cost}")
 
             self.optimal_state = best_state.copy()
@@ -159,10 +156,6 @@ class Annealer:
         self.state.plot_cost_history(save)
 
 class PortfolioState(State):
-    """
-    Move format = (i, j, delta)
-      - transfer delta weight from asset i to asset j
-    """
 
     def __init__(self, returns, cov, risk_free_rate=0.0074, max_w=0.3):
         super().__init__()
@@ -179,7 +172,6 @@ class PortfolioState(State):
 
         self.initial_state = self.state.copy()
 
-    # Calculating Portfolio Metrics
 
     def portfolio_return(self, w):
         return np.dot(w, self.returns)
@@ -197,40 +189,32 @@ class PortfolioState(State):
         w = self.state if state is None else state
         return -self.sharpe(w)
 
-    # ---------------------- MOVE MECHANICS ------------------------
-
     def apply_move(self, w, move):
-        """Apply (i, j, delta) without altering self.state."""
         i, j, delta = move
         w2 = w.copy()
 
-        # enforce bounds
         delta = min(delta, w2[i])          
         delta = min(delta, self.max_w - w2[j]) 
 
         if delta < 0:
-            return w.copy()  # no-op safeguard
+            return w.copy()
 
         w2[i] -= delta
         w2[j] += delta
         return w2
 
     def get_neighbour(self):
-        """Random weight-shift move."""
         i, j = np.random.choice(self.n, 2, replace=False)
         w = self.state
-
-        # max transferable
         max_delta = min(w[i], self.max_w - w[j])
         if max_delta <= 0:
-            return self.get_neighbour()  # retry
+            return self.get_neighbour() 
 
-        delta = np.random.uniform(0, max_delta * 0.2)  # small controlled move
+        delta = np.random.uniform(0, max_delta * 0.2)  
 
         return (i, j, delta)
 
     def update(self, move):
-        """Update self.state by applying move."""
         self.state = self.apply_move(self.state, move)
         self.cost_history.append(self.cost(self.state))
 
@@ -250,7 +234,6 @@ class PortfolioState(State):
                 if max_delta <= 1e-8:
                     continue
 
-                # Discretize — 3 test deltas
                 for fraction in (0.05, 0.1, 0.15):
                     delta = max_delta * fraction
                     move = (i, j, delta)
@@ -277,7 +260,7 @@ if __name__ == "__main__":
     annealer = Annealer(
         state=state,
         initial_temp=1,
-        temperature_schedule="logarithmic",
+        temperature_schedule="exponential",
         scheduling_constant=0.001
     )
 

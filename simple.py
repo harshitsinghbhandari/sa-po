@@ -3,7 +3,6 @@ import random
 import logging
 import matplotlib.pyplot as plt
 logging.basicConfig(filename="data.log",level=logging.INFO,format='%(asctime)s - %(levelname)s - %(message)s')
-# Save the log in "data.log" file
 
 def f(x):
     return x*x + 2*x + 1

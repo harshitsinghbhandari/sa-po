@@ -1,6 +1,3 @@
-# ================================================================
-# 1. IMPORTS & LOGGING
-# ================================================================
 import math
 import random
 import numpy as np
@@ -41,10 +38,6 @@ class PortfolioObjective:
     def composite(self, w, mu, cov, w0):
         return self.sharpe(w, mu, cov)  # ← using your final objective
 
-
-# ================================================================
-# 3. PORTFOLIO STATE
-# ================================================================
 class State:
     def __init__(self, expected_returns, cov_matrix, risk_free_rate=0.0, max_w=0.3, k=5):
         self.returns = expected_returns
@@ -64,7 +57,6 @@ class State:
 
         logging.info(f"Initial Sharpe Ratio: {self.sharpe_ratio(self.weights):.4f}")
 
-    # -------------------- Weight constraints --------------------
     def _enforce_max_w(self, w):
         excess = np.clip(w - self.max_w, 0, None)
         total_excess = excess.sum()
@@ -74,8 +66,6 @@ class State:
 
         # First clamp
         w = np.minimum(w, self.max_w)
-
-        # Redistribute excess
         room = np.clip(self.max_w - w, 0, None)
         room_sum = room.sum()
 
@@ -101,7 +91,6 @@ class State:
     def cost_change(self, new_w):
         return self.composite_cost(new_w) - self.composite_cost()
 
-    # -------------------- Neighbor generation --------------------
     def get_neighbour(self, temperature):
         w = self.weights.copy()
         active = np.where(w >= 0.01)[0]
@@ -125,10 +114,6 @@ class State:
     def update(self, new_weights):
         self.weights = new_weights
 
-
-# ================================================================
-# 4. COOLING SCHEDULES
-# ================================================================
 def linear_schedule(temp, c):
     return max(0, temp - c)
 
@@ -136,13 +121,8 @@ def exponential_schedule(temp, c):
     return (1 - c) * temp
 
 def logarithmic_schedule(temp, c, step, initial):
-    # temp = initial * c / log(step + 2)
     return initial * c / math.log(step + 2)
 
-
-# ================================================================
-# 5. SIMULATED ANNEALER
-# ================================================================
 class Annealer:
     def __init__(self, state, initial_temp, schedule_type, scheduling_constant):
         self.state = state
